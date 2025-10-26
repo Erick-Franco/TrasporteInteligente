@@ -47,8 +47,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       buses: '/api/buses',
-      rutas: '/api/rutas',
-      websocket: `ws://localhost:${PORT}`
+      rutas: '/api/rutas'
     }
   });
 });
