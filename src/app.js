@@ -9,6 +9,12 @@ const db = require('./config/database');
 // Importar rutas
 const busRoutes = require('./routes/busRoutes');
 const rutaRoutes = require('./routes/rutaRoutes');
+const paradasRoutes = require('./routes/paradasRoutes');
+const conductoresRoutes = require('./routes/conductoresRoutes');
+const asignacionesRoutes = require('./routes/asignacionesRoutes');
+const rutaParadasRoutes = require('./routes/rutaParadasRoutes');
+const ubicacionesRoutes = require('./routes/ubicacionesRoutes');
+const busesActivosRoutes = require('./routes/busesActivosRoutes');
 
 // Crear app Express
 const app = express();
@@ -55,6 +61,12 @@ app.get('/', (req, res) => {
 // Rutas de la API
 app.use('/api/buses', busRoutes);
 app.use('/api/rutas', rutaRoutes);
+app.use('/api/paradas', paradasRoutes);
+app.use('/api/conductores', conductoresRoutes);
+app.use('/api/asignaciones', asignacionesRoutes);
+app.use('/api/ruta-paradas', rutaParadasRoutes);
+app.use('/api/ubicaciones', ubicacionesRoutes);
+app.use('/api/buses-activos', busesActivosRoutes);
 
 // Ruta de salud
 app.get('/health', (req, res) => {

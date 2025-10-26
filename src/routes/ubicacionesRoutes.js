@@ -1,0 +1,9 @@
+// src/routes/ubicacionesRoutes.js
+const express = require('express');
+const router = express.Router();
+const { getUbicaciones } = require('../controllers/ubicacionesController');
+
+// GET /api/ubicaciones - Obtener las últimas ubicaciones
+router.get('/', getUbicaciones);
+
+module.exports = router;
