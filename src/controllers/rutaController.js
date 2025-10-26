@@ -3,6 +3,7 @@ const db = require('../config/database');
 
 // Obtener todas las rutas
 const getRutas = async (req, res) => {
+  console.log("DEBUG: DATABASE_URL en uso: ", process.env.DATABASE_URL);
   try {
     const result = await db.query(`
       SELECT 
