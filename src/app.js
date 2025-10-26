@@ -356,51 +356,6 @@ app.use((req, res) => {
   });
 });
 
-// ============ INICIAR SERVIDOR ============
-const PORT = process.env.PORT || 3000;
 
-const startServer = async () => {
-  try {
-    // Verificar conexión a la base de datos
-    const dbConnected = await db.testConnection();
-    
-    if (!dbConnected) {
-      console.error('❌ No se pudo conectar a la base de datos');
-      process.exit(1);
-    }
 
-    // Iniciar servidor
-    server.listen(PORT, () => {
-      console.log('\n🚀 ================================');
-      console.log(`🚍 Servidor corriendo en http://localhost:${PORT}`);
-      console.log(`📡 WebSocket listo en ws://localhost:${PORT}`);
-      console.log(`🗄️  Base de datos: ${process.env.DB_NAME}`);
-      console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-      console.log('🚀 ================================\n');
-    });
-  } catch (error) {
-    console.error('❌ Error al iniciar servidor:', error);
-    process.exit(1);
-  }
-};
-
-startServer();
-
-// Manejo de señales de terminación
-process.on('SIGTERM', () => {
-  console.log('⚠️ SIGTERM recibido, cerrando servidor...');
-  server.close(() => {
-    console.log('✅ Servidor cerrado');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('\n⚠️ SIGINT recibido, cerrando servidor...');
-  server.close(() => {
-    console.log('✅ Servidor cerrado');
-    process.exit(0);
-  });
-});
-
-module.exports = { app, io };
+module.exports = app;
