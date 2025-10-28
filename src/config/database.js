@@ -10,13 +10,20 @@ const connectionConfig = {
   }
 };
 
-// Crear pool de conexiones
-const pool = new Pool(connectionConfig);
+// En entornos serverless (Vercel) es importante reusar el pool entre invocaciones
+// para evitar crear múltiples pools y agotar conexiones. Guardamos el pool en global.
+const getPool = () => {
+  if (global.__pgPool) return global.__pgPool;
+  const pool = new Pool(connectionConfig);
+  pool.on('error', (err) => {
+    console.error('Error inesperado en el pool de PostgreSQL:', err);
+  });
+  global.__pgPool = pool;
+  return pool;
+};
 
-// Monitorear errores de conexión
-pool.on('error', (err) => {
-  console.error('Error inesperado en el pool de PostgreSQL:', err);
-});
+// Obtener el pool (reutilizable)
+const pool = getPool();
 
 // Función para probar la conexión
 const testConnection = async () => {
