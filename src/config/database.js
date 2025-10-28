@@ -10,16 +10,35 @@ const { Pool } = require('pg');
 const hasPgConfig = !!(process.env.DATABASE_URL || process.env.DB_HOST || process.env.DB_USER || process.env.DB_NAME);
 
 if (hasPgConfig) {
-  const poolConfig = process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL, ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false }
-    : {
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'transporte_inteligente',
-        port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-        max: 10
-      };
+  // Preferir DATABASE_URL (ej. Supabase).
+  // Por defecto habilitamos SSL con `rejectUnauthorized: false` para evitar
+  // errores como "self-signed certificate in certificate chain" en providers
+  // gestionados. Si se quiere verificación estricta, establecer DB_SSL=strict.
+  let poolConfig;
+  if (process.env.DATABASE_URL) {
+    const useSsl = process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: process.env.DB_SSL === 'strict' };
+
+    // Si no se pide estricticidad, permitir certificados autofirmados a nivel de Node
+    // (esto evita el error "self-signed certificate in certificate chain" cuando
+    // el proveedor usa certificados no verificados). Puedes forzar verificación
+    // estableciendo DB_SSL=strict en el entorno.
+    if (process.env.DB_SSL !== 'strict') {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
+    poolConfig = { connectionString: process.env.DATABASE_URL, ssl: useSsl };
+  } else {
+    const useSsl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL === 'strict' } : false;
+    poolConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'transporte_inteligente',
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+      max: 10,
+      ssl: useSsl
+    };
+  }
 
   const pool = new Pool(poolConfig);
 
