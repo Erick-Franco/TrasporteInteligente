@@ -26,7 +26,7 @@ const getRutaConCoordenadas = async (req, res) => {
     const { rutaId } = req.params;
 
     // 1. Obtener información de la ruta
-    const rutaResult = await db.query('SELECT * FROM rutas WHERE ruta_id = $1', [rutaId]);
+    const rutaResult = await db.query('SELECT * FROM rutas WHERE id = $1', [rutaId]);
 
     if (rutaResult.rowCount === 0) {
       return res.status(404).json({
@@ -36,30 +36,29 @@ const getRutaConCoordenadas = async (req, res) => {
     }
 
     const rutaInfo = rutaResult.rows[0];
+    // 2. Obtener paradas vinculadas a la ruta
+    const paradasResult = await db.query(
+      `SELECT p.*, rp.orden, rp.tiempo_estimado, rp.distancia_km, rp.es_parada_principal
+       FROM ruta_paradas rp
+       JOIN paradas p ON rp.parada_id = p.id
+       WHERE rp.ruta_id = $1
+       ORDER BY rp.orden ASC`,
+      [rutaId]
+    );
 
-    // 2. Obtener coordenadas de IDA
-    const idaResult = await db.query(`
-      SELECT latitud, longitud, nombre_referencia, es_parada, orden
-      FROM ruta_coordenadas
-      WHERE ruta_id = $1 AND direccion = 'ida'
-      ORDER BY orden ASC;
-    `, [rutaId]);
-
-    // 3. Obtener coordenadas de VUELTA
-    const vueltaResult = await db.query(`
-      SELECT latitud, longitud, nombre_referencia, es_parada, orden
-      FROM ruta_coordenadas
-      WHERE ruta_id = $1 AND direccion = 'vuelta'
-      ORDER BY orden ASC;
-    `, [rutaId]);
+    // 3. Obtener coordenadas (trayecto) de la ruta si existen
+    const coordsResult = await db.query(
+      'SELECT latitud, longitud, orden FROM coordenadas_ruta WHERE ruta_id = $1 ORDER BY orden ASC',
+      [rutaId]
+    );
 
     // 4. Ensamblar la respuesta final
     res.json({
       success: true,
       data: {
         ...rutaInfo,
-        ida: idaResult.rows,
-        vuelta: vueltaResult.rows
+        paradas: paradasResult.rows,
+        coordenadas: coordsResult.rows
       }
     });
 

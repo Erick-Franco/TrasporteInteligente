@@ -4,7 +4,8 @@ const db = require('../config/database');
 // Obtener todos los buses activos (usando la nueva vista)
 const getBusesActivos = async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM vista_buses_estado_actual ORDER BY bus_id');
+    // Usar la vista creada en la base de datos: vista_buses_activos
+    const result = await db.query('SELECT * FROM vista_buses_activos ORDER BY bus_id');
     res.json({
       success: true,
       count: result.rowCount,
@@ -24,7 +25,7 @@ const getBusesActivos = async (req, res) => {
 const getBusesPorRuta = async (req, res) => {
   try {
     const { rutaId } = req.params;
-    const result = await db.query('SELECT * FROM vista_buses_estado_actual WHERE ruta_id = $1', [rutaId]);
+  const result = await db.query('SELECT * FROM vista_buses_activos WHERE ruta_id = $1', [rutaId]);
     res.json({
       success: true,
       count: result.rowCount,
@@ -44,7 +45,7 @@ const getBusesPorRuta = async (req, res) => {
 const getBusPorId = async (req, res) => {
   try {
     const { busId } = req.params;
-    const result = await db.query('SELECT * FROM vista_buses_estado_actual WHERE bus_id = $1', [busId]);
+  const result = await db.query('SELECT * FROM vista_buses_activos WHERE bus_id = $1', [busId]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({

@@ -53,7 +53,7 @@ app.get('/', (req, res) => {
       rutas: '/api/rutas',
       conductores: '/api/conductores',
       asignaciones: '/api/asignaciones',
-      ubicaciones: '/api/ubicaciones'
+      ubicaciones: '/api/ubicaciones',
     }
   });
 });
@@ -74,6 +74,32 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Rutas públicas usadas por el frontend (no bajo /api)
+// GET /rutas-coordenadas -> devuelve rutas con arreglo de coordenadas (GeoJSON-like simple)
+app.get('/rutas-coordenadas', async (req, res) => {
+  try {
+    const rows = await db.query(
+      `SELECT r.id as ruta_id, r.nombre, cr.latitud, cr.longitud, cr.orden
+       FROM rutas r
+       JOIN coordenadas_ruta cr ON cr.ruta_id = r.id
+       WHERE r.activa = true
+       ORDER BY r.id, cr.orden ASC`
+    );
+
+    const data = (rows.rows || []).reduce((acc, row) => {
+      const rid = row.ruta_id;
+      if (!acc[rid]) acc[rid] = { ruta_id: rid, nombre: row.nombre, coordenadas: [] };
+      acc[rid].coordenadas.push({ lat: parseFloat(row.latitud), lon: parseFloat(row.longitud), orden: row.orden });
+      return acc;
+    }, {});
+
+    res.json({ success: true, data: Object.values(data) });
+  } catch (error) {
+    console.error('Error en /rutas-coordenadas:', error.message);
+    res.status(500).json({ success: false, message: 'Error al obtener rutas con coordenadas' });
+  }
+});
+
 // ============ WEBSOCKET (NUEVA LÓGICA) ============
 let clientesConectados = 0;
 
@@ -81,34 +107,9 @@ io.on('connection', (socket) => {
   clientesConectados++;
   console.log(`✅ Cliente conectado: ${socket.id} (Total: ${clientesConectados})`);
 
-  // Enviar buses activos al conectarse (nueva consulta)
-  db.query(`
-    SELECT 
-        b.bus_id,
-        b.placa,
-        b.sentido,
-        r.ruta_id,
-        r.nombre AS ruta_nombre,
-        r.color AS ruta_color,
-        u.latitud,
-        u.longitud,
-        u.velocidad,
-        u.direccion,
-        u.fecha_registro
-    FROM buses b
-    JOIN rutas r ON b.ruta_id = r.ruta_id
-    JOIN LATERAL (
-        SELECT latitud, longitud, velocidad, direccion, fecha_registro
-        FROM ubicaciones_tiempo_real
-        WHERE bus_id = b.bus_id
-        ORDER BY fecha_registro DESC
-        LIMIT 1
-    ) u ON true
-    WHERE b.estado = 'activo' AND r.activa = true;
-  `)
-    .then(result => {
-      socket.emit('buses-init', result.rows);
-    })
+  // Enviar buses activos al conectarse usando la vista `vista_buses_activos`
+  db.query('SELECT * FROM vista_buses_activos ORDER BY bus_id')
+    .then(result => socket.emit('buses-init', result.rows))
     .catch(err => console.error('Error al enviar buses iniciales:', err));
 
   // Evento: Cliente se suscribe a una ruta específica
@@ -132,48 +133,37 @@ io.on('connection', (socket) => {
 
 // ============ SIMULADOR GPS (REESCRITO PARA IDA/VUELTA) ============
 if (process.env.NODE_ENV === 'development') {
-  
+
   const estadoBuses = new Map();
 
   const inicializarSimulador = async () => {
     try {
-      const { rows: buses } = await db.query(`
-        SELECT b.*, r.nombre as ruta_nombre 
-        FROM buses b
-        JOIN rutas r ON b.ruta_id = r.ruta_id
-        WHERE b.estado = 'activo'
-      `);
-      
+      // Obtener buses activos desde la vista
+      const { rows: buses } = await db.query('SELECT * FROM vista_buses_activos');
+
       for (const bus of buses) {
-        const { rows: coords } = await db.query(
-          'SELECT * FROM ruta_coordenadas WHERE ruta_id = $1 ORDER BY direccion, orden',
-          [bus.ruta_id]
-        );
+        // Obtener coordenadas de la ruta desde la tabla `coordenadas_ruta` (si existe)
+        const coordsRes = await db.query('SELECT * FROM coordenadas_ruta WHERE ruta_id = $1 ORDER BY orden', [bus.ruta_id]);
+        const coords = coordsRes.rows || [];
 
-        const rutaIda = coords.filter(c => c.direccion === 'ida');
-        const rutaVuelta = coords.filter(c => c.direccion === 'vuelta');
-
-        if (rutaIda.length === 0 || rutaVuelta.length === 0) {
-          console.warn(`⚠️ Bus ${bus.placa} no tiene coordenadas de ida y/o vuelta. Saltando.`);
+        if (!coords || coords.length === 0) {
+          console.warn(`⚠️ Bus ${bus.placa} (ruta ${bus.ruta_id}) no tiene coordenadas. Saltando.`);
           continue;
         }
 
-        const { rows: [lastLocation] } = await db.query(
-          'SELECT latitud, longitud FROM ubicaciones_tiempo_real WHERE bus_id = $1 ORDER BY fecha_registro DESC LIMIT 1',
-          [bus.bus_id]
-        );
+        const lastLocationRes = await db.query('SELECT latitud, longitud FROM ubicaciones_tiempo_real WHERE bus_id = $1 ORDER BY fecha_registro DESC LIMIT 1', [bus.bus_id]);
+        const lastLocation = (lastLocationRes.rows && lastLocationRes.rows[0]) || null;
 
-        const latitudInicial = lastLocation ? parseFloat(lastLocation.latitud) : parseFloat(rutaIda[0].latitud);
-        const longitudInicial = lastLocation ? parseFloat(lastLocation.longitud) : parseFloat(rutaIda[0].longitud);
+        const latitudInicial = lastLocation ? parseFloat(lastLocation.latitud) : parseFloat(coords[0].latitud);
+        const longitudInicial = lastLocation ? parseFloat(lastLocation.longitud) : parseFloat(coords[0].longitud);
 
         estadoBuses.set(bus.bus_id, {
           id: bus.bus_id,
           placa: bus.placa,
           ruta_id: bus.ruta_id,
-          ruta_nombre: bus.ruta_nombre,
-          sentido: bus.sentido, // 'ida' o 'vuelta'
-          rutaIda,
-          rutaVuelta,
+          ruta_nombre: bus.ruta_nombre || null,
+          sentido: bus.sentido || 'ida',
+          rutaCoords: coords,
           puntoActual: 0,
           siguientePunto: 1,
           progreso: 0,
@@ -217,28 +207,26 @@ if (process.env.NODE_ENV === 'development') {
 
     try {
       for (const [busId, estado] of estadoBuses) {
-        const rutaActual = estado.sentido === 'ida' ? estado.rutaIda : estado.rutaVuelta;
-        
+        const rutaActual = estado.rutaCoords;
+
         if (estado.puntoActual >= rutaActual.length - 1) {
-            // Lógica de cambio de sentido
-            const nuevoSentido = estado.sentido === 'ida' ? 'vuelta' : 'ida';
-            estado.sentido = nuevoSentido;
-            estado.puntoActual = 0;
-            estado.siguientePunto = 1;
-            estado.progreso = 0;
-            estado.detenido = true; // Forzar parada al cambiar de sentido
-            console.log(`🔄 Bus ${estado.placa} cambió de sentido a ${nuevoSentido}`);
-            await db.query('UPDATE buses SET sentido = $1 WHERE bus_id = $2', [nuevoSentido, busId]);
-            continue;
+          // Cambio de sentido en memoria (no actualizamos DB aquí para evitar errores si no existe columna)
+          estado.sentido = estado.sentido === 'ida' ? 'vuelta' : 'ida';
+          estado.puntoActual = 0;
+          estado.siguientePunto = 1;
+          estado.progreso = 0;
+          estado.detenido = true;
+          console.log(`🔄 Bus ${estado.placa} cambió de sentido a ${estado.sentido}`);
+          continue;
         }
 
         const puntoActual = rutaActual[estado.puntoActual];
-        const siguientePunto = rutaActual[estado.siguientePunto];
+        const siguientePunto = rutaActual[Math.min(estado.siguientePunto, rutaActual.length - 1)];
 
         if (estado.detenido) {
           estado.tiempoDetenido += 2;
-          const tiempoParada = puntoActual.es_parada ? 10 : 0;
-          
+          const tiempoParada = 0; // No hay indicador en coordenadas_ruta
+
           if (estado.tiempoDetenido >= tiempoParada) {
             estado.detenido = false;
             estado.tiempoDetenido = 0;
@@ -255,29 +243,22 @@ if (process.env.NODE_ENV === 'development') {
           parseFloat(puntoActual.latitud), parseFloat(puntoActual.longitud),
           parseFloat(siguientePunto.latitud), parseFloat(siguientePunto.longitud)
         );
-        
+
         if (distancia > 0) {
-            const incrementoProgreso = (estado.velocidad / distancia / 3600) * 2;
-            estado.progreso += incrementoProgreso;
+          const incrementoProgreso = (estado.velocidad / distancia / 3600) * 2;
+          estado.progreso += incrementoProgreso;
         } else {
-            estado.progreso = 1; // Si la distancia es 0, saltar al siguiente punto
+          estado.progreso = 1;
         }
 
         if (estado.progreso >= 1) {
           estado.progreso = 0;
           estado.puntoActual = estado.siguientePunto;
           estado.siguientePunto = estado.puntoActual + 1;
-
-          const puntoAlcanzado = rutaActual[estado.puntoActual];
-          if (puntoAlcanzado.es_parada) {
-            estado.detenido = true;
-            estado.velocidad = 0;
-            console.log(`🚏 Bus ${estado.placa} llegó a la parada: ${puntoAlcanzado.nombre_referencia}`);
-          }
         }
 
         const posActual = rutaActual[estado.puntoActual];
-        const posSiguiente = rutaActual[estado.siguientePunto];
+        const posSiguiente = rutaActual[Math.min(estado.siguientePunto, rutaActual.length - 1)];
 
         const nuevaPosicion = interpolar(
           parseFloat(posActual.latitud), parseFloat(posActual.longitud),
@@ -289,8 +270,8 @@ if (process.env.NODE_ENV === 'development') {
         estado.longitud = nuevaPosicion.lon;
 
         const direccion = calcularDireccion(
-            parseFloat(posActual.latitud), parseFloat(posActual.longitud),
-            parseFloat(posSiguiente.latitud), parseFloat(posSiguiente.longitud)
+          parseFloat(posActual.latitud), parseFloat(posActual.longitud),
+          parseFloat(posSiguiente.latitud), parseFloat(posSiguiente.longitud)
         );
 
         await db.query(
@@ -308,8 +289,6 @@ if (process.env.NODE_ENV === 'development') {
           longitud: estado.longitud,
           velocidad: estado.velocidad,
           direccion: direccion,
-          es_parada: puntoActual.es_parada,
-          siguiente_parada: siguientePunto.nombre_referencia,
           timestamp: new Date()
         });
       }
@@ -342,5 +321,11 @@ app.use((req, res) => {
 });
 
 
+
+// Si se ejecuta directamente (node src/app.js), levantar servidor para pruebas locales
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => console.log(`🚀 Server escuchando en http://localhost:${PORT}`));
+}
 
 module.exports = app;
