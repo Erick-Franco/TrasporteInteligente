@@ -86,6 +86,18 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Ruta para verificar conexión a la base de datos (útil en Vercel)
+app.get('/api/health-db', async (req, res) => {
+  try {
+    const ok = await db.testConnection();
+    if (ok) return res.json({ success: true, message: 'DB OK' });
+    return res.status(500).json({ success: false, message: 'DB connection failed' });
+  } catch (err) {
+    console.error('Error en health-db:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ============ WEBSOCKET ============
 let clientesConectados = 0;
 
