@@ -56,6 +56,8 @@ app.get('/', (req, res) => {
       conductores: '/api/conductores',
       asignaciones: '/api/asignaciones',
       ubicaciones: '/api/ubicaciones',
+      paradas: '/api/paradas'
+     
     }
   });
 });
