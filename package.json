@@ -1,13 +1,12 @@
 {
   "name": "transporte-inteligente-backend",
   "version": "1.0.0",
-  "type": "module",
   "description": "API REST y WebSocket para sistema de transporte inteligente",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
-    "import:geojson": "node src/data/importar_geojson.js",
+  "start": "node src/app.js",
+  "dev": "nodemon src/app.js",
+  "import:geojson": "node scripts/importar_geojson.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "keywords": [
