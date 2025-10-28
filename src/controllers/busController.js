@@ -1,14 +1,10 @@
 // src/controllers/busController.js
 const db = require('../config/database');
 
-// Obtener todos los buses activos
+// Obtener todos los buses activos (usando la nueva vista)
 const getBusesActivos = async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT * FROM vista_buses_activos
-      ORDER BY bus_id
-    `);
-
+    const result = await db.query('SELECT * FROM vista_buses_estado_actual ORDER BY bus_id');
     res.json({
       success: true,
       count: result.rowCount,
@@ -24,16 +20,11 @@ const getBusesActivos = async (req, res) => {
   }
 };
 
-// Obtener buses de una ruta específica
+// Obtener buses de una ruta específica (usando la nueva vista)
 const getBusesPorRuta = async (req, res) => {
   try {
     const { rutaId } = req.params;
-
-    const result = await db.query(`
-      SELECT * FROM vista_buses_activos
-      WHERE ruta_id = $1
-    `, [rutaId]);
-
+    const result = await db.query('SELECT * FROM vista_buses_estado_actual WHERE ruta_id = $1', [rutaId]);
     res.json({
       success: true,
       count: result.rowCount,
@@ -49,15 +40,11 @@ const getBusesPorRuta = async (req, res) => {
   }
 };
 
-// Obtener información de un bus específico
+// Obtener información de un bus específico (usando la nueva vista)
 const getBusPorId = async (req, res) => {
   try {
     const { busId } = req.params;
-
-    const result = await db.query(`
-      SELECT * FROM vista_buses_activos
-      WHERE bus_id = $1
-    `, [busId]);
+    const result = await db.query('SELECT * FROM vista_buses_estado_actual WHERE bus_id = $1', [busId]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({
@@ -86,34 +73,23 @@ const actualizarUbicacion = async (req, res) => {
     const { busId } = req.params;
     const { latitud, longitud, velocidad, direccion } = req.body;
 
-    // Validar datos
     if (!latitud || !longitud) {
-      return res.status(400).json({
-        success: false,
-        message: 'Latitud y longitud son requeridos'
-      });
+      return res.status(400).json({ success: false, message: 'Latitud y longitud son requeridos' });
     }
 
-    // Insertar nueva ubicación
     const result = await db.query(`
-      INSERT INTO ubicaciones_tiempo_real 
-      (bus_id, latitud, longitud, velocidad, direccion)
+      INSERT INTO ubicaciones_tiempo_real (bus_id, latitud, longitud, velocidad, direccion)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `, [busId, latitud, longitud, velocidad || 0, direccion || 0]);
 
-    // Emitir evento via Socket.IO (lo haremos después)
     if (req.io) {
-      req.io.emit('bus-update', {
-        bus_id: busId,
-        latitud,
-        longitud,
-        velocidad,
-        timestamp: new Date()
-      });
+      // La actualización principal se emite desde el simulador, 
+      // pero podemos emitir una secundaria aquí si es necesario.
+      // Por ahora, lo dejamos así para no duplicar eventos.
     }
 
-    res.json({
+    res.status(201).json({
       success: true,
       message: 'Ubicación actualizada',
       data: result.rows[0]
@@ -128,17 +104,16 @@ const actualizarUbicacion = async (req, res) => {
   }
 };
 
-// Obtener historial de ubicaciones
+// Obtener historial de ubicaciones de un bus
 const getHistorialUbicaciones = async (req, res) => {
   try {
     const { busId } = req.params;
-    const { limite = 50 } = req.query;
+    const { limite = 100 } = req.query;
 
     const result = await db.query(
-        'SELECT bus_id, latitud, longitud, velocidad, direccion, fecha_registro FROM ubicaciones_tiempo_real WHERE bus_id = $1 ORDER BY fecha_registro DESC',
-        [busId]
+      'SELECT * FROM ubicaciones_tiempo_real WHERE bus_id = $1 ORDER BY fecha_registro DESC LIMIT $2',
+      [busId, limite]
     );
-
 
     res.json({
       success: true,
