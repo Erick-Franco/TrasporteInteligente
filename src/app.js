@@ -45,7 +45,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ============ RUTAS ============
+// ============ RUTAS ===========
 app.get('/', (req, res) => {
   res.json({
     success: true,
