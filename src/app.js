@@ -49,11 +49,19 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: '🚍 API de Transporte Inteligente',
+    message: 'API de Transporte Inteligente',
     version: '1.0.0',
     endpoints: {
       buses: '/api/buses',
-      rutas: '/api/rutas'
+      rutas: '/api/rutas',
+      paradas: '/api/paradas',
+      conductores: '/api/conductores',
+      asignaciones: '/api/asignaciones',
+      rutaParadas: '/api/ruta-paradas',
+      ubicaciones: '/api/ubicaciones',
+      busesActivos: '/api/buses-activos'
+
+
     }
   });
 });
