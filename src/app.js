@@ -60,6 +60,7 @@ app.get('/', (req, res) => {
       rutaParadas: '/api/ruta-paradas',
       ubicaciones: '/api/ubicaciones',
       busesActivos: '/api/buses-activos'
+      
 
 
     }

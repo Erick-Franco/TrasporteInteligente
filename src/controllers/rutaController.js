@@ -1,6 +1,110 @@
 // src/controllers/rutaController.js
 const db = require('../config/database');
 
+// Obtener coordenadas de una ruta
+const getRutaCoordenadas = async (req, res) => {
+  try {
+    const { rutaId } = req.params;
+
+    // Obtener información básica de la ruta
+    const rutaResult = await db.query(`
+      SELECT * FROM rutas WHERE id = $1
+    `, [rutaId]);
+
+    if (rutaResult.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ruta no encontrada'
+      });
+    }
+
+    // Obtener coordenadas ordenadas de la ruta
+    const coordenadasResult = await db.query(`
+      SELECT latitud, longitud, orden
+      FROM coordenadas_ruta
+      WHERE ruta_id = $1
+      ORDER BY orden
+    `, [rutaId]);
+
+    // Formatear como GeoJSON LineString
+    const geoJSON = {
+      type: "Feature",
+      properties: {
+        ...rutaResult.rows[0],
+        total_coordenadas: coordenadasResult.rowCount
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: coordenadasResult.rows.map(coord => [coord.longitud, coord.latitud])
+      }
+    };
+
+    res.json({
+      success: true,
+      data: geoJSON
+    });
+  } catch (error) {
+    console.error('Error al obtener coordenadas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener coordenadas de la ruta',
+      error: error.message
+    });
+  }
+};
+
+// Obtener todas las rutas en formato GeoJSON
+const getRutasGeoJSON = async (req, res) => {
+  try {
+    // Obtener todas las rutas activas
+    const rutasResult = await db.query(`
+      SELECT id, nombre, descripcion, color, activa
+      FROM rutas
+      WHERE activa = true
+      ORDER BY nombre
+    `);
+
+    // Para cada ruta, obtener sus coordenadas
+    const features = await Promise.all(rutasResult.rows.map(async (ruta) => {
+      const coordenadasResult = await db.query(`
+        SELECT latitud, longitud, orden
+        FROM coordenadas_ruta
+        WHERE ruta_id = $1
+        ORDER BY orden
+      `, [ruta.id]);
+
+      return {
+        type: "Feature",
+        properties: {
+          ...ruta,
+          total_coordenadas: coordenadasResult.rowCount
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: coordenadasResult.rows.map(coord => [coord.longitud, coord.latitud])
+        }
+      };
+    }));
+
+    const geoJSON = {
+      type: "FeatureCollection",
+      features: features
+    };
+
+    res.json({
+      success: true,
+      data: geoJSON
+    });
+  } catch (error) {
+    console.error('Error al obtener rutas GeoJSON:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener rutas en formato GeoJSON',
+      error: error.message
+    });
+  }
+};
+
 // Obtener todas las rutas
 const getRutas = async (req, res) => {
   try {
@@ -209,5 +313,7 @@ module.exports = {
   getRutas,
   getRutaConParadas,
   getParadasCercanas,
-  calcularMejorRuta
+  calcularMejorRuta,
+  getRutaCoordenadas,
+  getRutasGeoJSON
 };
