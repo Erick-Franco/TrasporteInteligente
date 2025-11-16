@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Panel Gerente</title>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+</head>
+<body>
+    <div class="dashboard">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <!-- Header -->
+            <div class="sidebar-header">
+                <h2 id="ruta-nombre">Cargando...</h2>
+                <p id="ruta-codigo">---</p>
+            </div>
+
+            <!-- Info del Gerente -->
+            <div class="gerente-info">
+                <h3 id="gerente-nombre">Cargando...</h3>
+                <div class="info-item">
+                    <span>📧</span>
+                    <span id="gerente-email">---</span>
+                </div>
+                <div class="info-item">
+                    <span>📞</span>
+                    <span id="gerente-telefono">---</span>
+                </div>
+            </div>
+
+            <!-- Lista de Rutas -->
+            <div class="rutas-list">
+                <h3>Rutas Disponibles</h3>
+                <div id="rutas-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>Cargando rutas...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-conductores">0</div>
+                    <div class="stat-label">Conductores Activos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-velocidad">0</div>
+                    <div class="stat-label">Velocidad Promedio</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-viajes">0</div>
+                    <div class="stat-label">Viajes Hoy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-paraderos">0</div>
+                    <div class="stat-label">Paraderos</div>
+                </div>
+            </div>
+
+            <!-- Lista de Conductores -->
+            <div class="conductores-list">
+                <h3>Conductores en Ruta</h3>
+                <div id="conductores-container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>Cargando conductores...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btn-logout">
+                    🚪 Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAPA -->
+        <div class="map-container">
+            <div class="map-controls">
+                <button class="control-btn" id="btn-center" title="Centrar mapa">
+                    🎯
+                </button>
+                <button class="control-btn" id="btn-refresh" title="Actualizar">
+                    🔄
+                </button>
+            </div>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/map.js"></script>
+</body>
+</html>

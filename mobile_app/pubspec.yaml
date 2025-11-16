@@ -1,0 +1,47 @@
+name: transporte_inteligente
+description: Aplicación de transporte inteligente para seguimiento de buses en tiempo real
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Maps - OpenStreetMap
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  
+  # Location
+  geolocator: ^10.1.0
+  location: ^5.0.3
+  permission_handler: ^11.0.1
+  
+  # Network
+  socket_io_client: ^2.0.3+1
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  
+  # HTTP para API
+  http: ^1.1.0
+  
+  # UI
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # assets:
+  #   - images/
+  #   - assets/
