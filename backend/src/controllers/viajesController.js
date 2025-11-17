@@ -258,7 +258,7 @@ const obtenerViajesActivos = async (req, res) => {
             LEFT JOIN vehiculos ve ON v.vehiculo_id = ve.id
             LEFT JOIN LATERAL (
                 SELECT latitud, longitud, velocidad, direccion
-                FROM ubicaciones
+                FROM ubicaciones_tiempo_real
                 WHERE conductor_id = v.conductor_id
                 ORDER BY timestamp DESC
                 LIMIT 1
