@@ -115,6 +115,12 @@ class LocationService {
       // Cancelar suscripción anterior si existe
       await stopSendingLocation();
 
+      // Enviar ubicación inicial inmediatamente
+      final initialPosition = await getCurrentLocation();
+      if (initialPosition != null) {
+        await _sendLocationToFirebase(initialPosition);
+      }
+
       // Suscribirse al stream de ubicación
       _locationSubscription = getLocationStream().listen(
         (position) async {

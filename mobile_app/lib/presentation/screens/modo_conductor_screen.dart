@@ -197,7 +197,7 @@ class _ModoConductorScreenState extends State<ModoConductorScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              if (conductor.tieneViajeActivo)
+                              if (conductorProvider.tieneViajeActivo)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -365,7 +365,7 @@ class _ModoConductorScreenState extends State<ModoConductorScreen> {
                         const SizedBox(width: 8),
                         // Botón iniciar/finalizar viaje
                         Expanded(
-                          child: conductor.tieneViajeActivo
+                          child: conductorProvider.tieneViajeActivo
                               ? ElevatedButton.icon(
                                   onPressed: () => _finalizarViaje(context),
                                   icon: const Icon(Icons.stop, size: 20),

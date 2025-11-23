@@ -150,19 +150,19 @@ class ChatProvider with ChangeNotifier {
 
     try {
       print('📥 Cargando mensajes del chat desde Firestore...');
-        _mensajes = await _chatService.obtenerMensajes();
+      _mensajes = await _chatService.obtenerMensajes();
 
-        // Registrar IDs conocidos y calcular el último timestamp
-        _knownIds.clear();
-        if (_mensajes.isNotEmpty) {
-          for (final m in _mensajes) {
-            if (m.docId != null) _knownIds.add(m.docId!);
-          }
-          // El último mensaje (más reciente) estará al final de la lista
-          _lastLoadedTimestamp = _mensajes.last.fechaEnvio;
-        } else {
-          _lastLoadedTimestamp = null;
+      // Registrar IDs conocidos y calcular el último timestamp
+      _knownIds.clear();
+      if (_mensajes.isNotEmpty) {
+        for (final m in _mensajes) {
+          if (m.docId != null) _knownIds.add(m.docId!);
         }
+        // El último mensaje (más reciente) estará al final de la lista
+        _lastLoadedTimestamp = _mensajes.last.fechaEnvio;
+      } else {
+        _lastLoadedTimestamp = null;
+      }
 
       print('✅ Mensajes cargados: ${_mensajes.length}');
 
@@ -234,27 +234,7 @@ class ChatProvider with ChangeNotifier {
         });
       } else {
         print('✅ Mensaje enviado correctamente');
-
-        // Añadir el mensaje localmente para mostrarlo inmediatamente
-        try {
-          final local = MensajeModel(
-            usuarioNombre: nombreUsuario,
-            usuarioId: idUsuario,
-            usuarioTipo: tipoUsuario,
-            mensaje: texto.trim(),
-            fechaEnvio: DateTime.now(),
-          );
-          _mensajes.add(local);
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            try {
-              notifyListeners();
-            } catch (e) {
-              print('⚠️ notifyListeners fallo al añadir mensaje local: $e');
-            }
-          });
-        } catch (e) {
-          print('❌ Error añadiendo mensaje local: $e');
-        }
+        // El mensaje se agregará automáticamente vía listener de Firestore
       }
 
       return enviado;
@@ -284,7 +264,8 @@ class ChatProvider with ChangeNotifier {
       try {
         _chatService.removerListener(_internalListener!);
       } catch (e) {
-        print('⚠️ Error removiendo listener previo antes de registrar uno nuevo: $e');
+        print(
+            '⚠️ Error removiendo listener previo antes de registrar uno nuevo: $e');
       }
       _internalListener = null;
     }
@@ -296,28 +277,30 @@ class ChatProvider with ChangeNotifier {
       print(
           '   Mensaje: ${nuevoMensaje.mensaje.substring(0, nuevoMensaje.mensaje.length > 50 ? 50 : nuevoMensaje.mensaje.length)}...');
 
-        // Si el mensaje es anterior o igual al último cargado, ignorarlo
-        if (_lastLoadedTimestamp != null &&
-            !nuevoMensaje.fechaEnvio.isAfter(_lastLoadedTimestamp!)) {
-          print('⚠️ Mensaje con timestamp ${nuevoMensaje.fechaEnvio} anterior/al último cargado, ignorado');
-          return;
-        }
+      // Si el mensaje es anterior o igual al último cargado, ignorarlo
+      if (_lastLoadedTimestamp != null &&
+          !nuevoMensaje.fechaEnvio.isAfter(_lastLoadedTimestamp!)) {
+        print(
+            '⚠️ Mensaje con timestamp ${nuevoMensaje.fechaEnvio} anterior/al último cargado, ignorado');
+        return;
+      }
 
-        // Verificar que no exista duplicado
-        final existe = _mensajes.any((m) =>
+      // Verificar que no exista duplicado
+      final existe = _mensajes.any((m) =>
           // Coincidencia por docId cuando esté disponible
-          ((m.docId != null && nuevoMensaje.docId != null) && m.docId == nuevoMensaje.docId) ||
+          ((m.docId != null && nuevoMensaje.docId != null) &&
+              m.docId == nuevoMensaje.docId) ||
           // Fallback por contenido y proximidad temporal
           (m.mensaje == nuevoMensaje.mensaje &&
               m.usuarioNombre == nuevoMensaje.usuarioNombre &&
               m.fechaEnvio.difference(nuevoMensaje.fechaEnvio).inSeconds.abs() <
                   2));
 
-        if (!existe) {
-          _mensajes.add(nuevoMensaje);
+      if (!existe) {
+        _mensajes.add(nuevoMensaje);
 
-          // Añadir a knownIds si viene con docId
-          if (nuevoMensaje.docId != null) _knownIds.add(nuevoMensaje.docId!);
+        // Añadir a knownIds si viene con docId
+        if (nuevoMensaje.docId != null) _knownIds.add(nuevoMensaje.docId!);
 
         // Incrementar contador si el chat está cerrado
         if (!_chatAbierto) {
