@@ -1,0 +1,17 @@
+# 🔥 ARCHIVOS SENSIBLES
+.env
+.env.*
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist
+
+# Node
+node_modules/
+dist/
+
+# Flutter
+build/
+.dart_tool/
+
+# Logs
+*.log
